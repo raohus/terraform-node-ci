@@ -12,10 +12,10 @@ resource "aws_security_group" "ssh_access" {
   description = "Allow SSH inbound traffic"
 
   ingress {
-    from_port   = 22
-    to_port     = 22
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.227.242.31/0"]
   }
 
   egress {
