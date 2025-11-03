@@ -26,7 +26,7 @@ resource "aws_security_group" "ssh_access" {
   }
 }
 
-resource "aws_instance" "example" {
+resource "aws_instance" "web" {
   ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI for us-east-1
   instance_type = "t2.micro"
   key_name      = aws_key_pair.deployer.key_name
