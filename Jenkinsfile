@@ -28,10 +28,10 @@ pipeline {
                 ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP << EOF
                   sudo apt update
                   sudo apt install -y nodejs npm
-                  git clone https://your-repo-url.git
-                  cd your-app-folder
+                  git clone https://github.com/raohus/terraform-node-ci.git
+                  cd terraform-node-ci
                   npm install
-                  node index.js &
+                  nohup node index.js > app.log 2>&1 &
                 EOF
                 '''
             }
