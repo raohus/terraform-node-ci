@@ -22,28 +22,29 @@ pipeline {
 
         stage('Deploy Node.js App') {
             steps {
-                // SSH into EC2 and deploy app
-                sh '''
-                EC2_IP=$(terraform output -raw ec2_public_ip)
-                ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP << EOF
-                  sudo apt update
-                  sudo apt install -y nodejs npm
-                  git clone https://github.com/raohus/terraform-node-ci.git
-                  cd terraform-node-ci
-                  npm install
-                  nohup node index.js > app.log 2>&1 &
-                EOF
-                '''
+                withCredentials([sshUserPrivateKey(credentialsId: 'ssh_private_key', keyFileVariable: 'SSH_KEY')]) {
+                    sh '''
+                    EC2_IP=$(terraform output -raw ec2_public_ip)
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@$EC2_IP << EOF
+                      sudo yum update -y
+                      sudo yum install -y nodejs git
+                      git clone https://github.com/raohus/terraform-node-ci.git
+                      cd terraform-node-ci
+                      npm install
+                      nohup node index.js > app.log 2>&1 &
+                    EOF
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo '✅ Deployment successful!'
         }
         failure {
-            echo 'Deployment failed.'
+            echo '❌ Deployment failed.'
         }
     }
 }
