@@ -7,7 +7,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 git 'https://github.com/raohus/terraform-node-ci.git'
             }
@@ -15,38 +15,35 @@ pipeline {
 
         stage('Terraform Init & Apply') {
             steps {
+                sh 'terraform init'
+                sh 'terraform apply -auto-approve'
+            }
+        }
+
+        stage('Deploy Node.js App') {
+            steps {
+                // SSH into EC2 and deploy app
                 sh '''
-                    cd terraform
-                    terraform init
-                    terraform apply -auto-approve
+                EC2_IP=$(terraform output -raw ec2_public_ip)
+                ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP << EOF
+                  sudo apt update
+                  sudo apt install -y nodejs npm
+                  git clone https://your-repo-url.git
+                  cd your-app-folder
+                  npm install
+                  node index.js &
+                EOF
                 '''
             }
         }
+    }
 
-        stage('Get EC2 Public IP') {
-            steps {
-                script {
-                    ec2_ip = sh(script: "cd terraform && terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                    echo "EC2 Public IP: ${ec2_ip}"
-                }
-            }
+    post {
+        success {
+            echo 'Deployment successful!'
         }
-
-        stage('Deploy Node.js App to EC2') {
-            steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@${ec2_ip} << EOF
-                        sudo apt update
-                        sudo apt install -y nodejs npm git
-                        git clone https://github.com/raohus/terraform-node-ci.git
-                        cd terraform-node-ci
-                        npm install
-                        nohup node index.js &
-                        EOF
-                    '''
-                }
-            }
+        failure {
+            echo 'Deployment failed.'
         }
     }
 }
