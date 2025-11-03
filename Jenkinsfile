@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git 'https://github.com/your-username/terraform-node-ci.git'
+                git 'https://github.com/raohus/terraform-node-ci.git'
             }
         }
 
@@ -39,7 +39,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no ubuntu@${ec2_ip} << EOF
                         sudo apt update
                         sudo apt install -y nodejs npm git
-                        git clone https://github.com/your-username/terraform-node-ci.git
+                        git clone https://github.com/raohus/terraform-node-ci.git
                         cd terraform-node-ci
                         npm install
                         nohup node index.js &
