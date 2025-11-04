@@ -18,7 +18,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                echo "🏗️ Building Docker image..."
+                echo "Building Docker image..."
                 docker build -t $APP_IMAGE .
                 docker save $APP_IMAGE -o node-app.tar
                 '''
@@ -33,24 +33,38 @@ pipeline {
             }
         }
 
+        stage('Terraform Refresh') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    echo "Refreshing Terraform state..."
+                    terraform refresh
+                    '''
+                }
+            }
+        }
+
         stage('Terraform Apply') {
             steps {
                 dir("${TF_DIR}") {
-                    sh 'terraform apply -auto-approve'
+                    sh '''
+                    echo " Applying Terraform configuration..."
+                    terraform apply -auto-approve
+                    '''
                 }
             }
         }
 
         stage('Deploy App via Terraform User Data') {
             steps {
-                echo "🚀 Terraform will install Docker & run the app automatically on EC2"
+                echo "✅ Terraform will install Docker & run the app automatically on EC2"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment successful! Visit the EC2 public IP output by Terraform.'
+            echo '🎉 Deployment successful! Visit the EC2 public IP output by Terraform.'
         }
         failure {
             echo '❌ Deployment failed.'
