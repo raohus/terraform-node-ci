@@ -22,7 +22,7 @@ pipeline {
 
         stage('Deploy Node.js App') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ssh_private_key', keyFileVariable: 'SSH_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
                     EC2_IP=$(terraform output -raw ec2_public_ip)
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@$EC2_IP << EOF
