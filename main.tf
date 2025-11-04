@@ -1,22 +1,14 @@
-#############################################
-#  Terraform + AWS EC2 Node.js App Deployment
-#############################################
 
 provider "aws" {
   region = "us-east-1"
 }
 
-#############################################
-#  Key Pair (for EC2 login, optional)
-#############################################
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
   public_key = file("${path.module}/id_ed25519_personal.pub")
 }
 
-#############################################
-#  Security Group (Allow HTTP, SSH, ICMP)
-#############################################
+
 resource "aws_security_group" "web_access" {
   name        = "allow_http_icmp_ssh"
   description = "Allow HTTP, ICMP, and SSH inbound traffic"
@@ -53,9 +45,7 @@ resource "aws_security_group" "web_access" {
   }
 }
 
-#############################################
-#  EC2 Instance - Docker + Node.js App
-#############################################
+
 resource "aws_instance" "web" {
   ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2 (us-east-1)
   instance_type          = "t2.micro"
