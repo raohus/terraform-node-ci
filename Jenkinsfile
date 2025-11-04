@@ -2,8 +2,10 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key')
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        TF_DIR = '.'
+        APP_IMAGE = 'node-app:latest'
     }
 
     stages {
@@ -13,35 +15,42 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Apply') {
+        stage('Build Docker Image') {
             steps {
-                sh 'terraform init'
-                sh 'terraform apply -auto-approve'
+                sh '''
+                echo "🏗️ Building Docker image..."
+                docker build -t $APP_IMAGE .
+                docker save $APP_IMAGE -o node-app.tar
+                '''
             }
         }
 
-        stage('Deploy Node.js App') {
+        stage('Terraform Init') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh '''
-                    EC2_IP=$(terraform output -raw ec2_public_ip)
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@$EC2_IP << EOF
-                      sudo yum update -y
-                      sudo yum install -y nodejs git
-                      git clone https://github.com/raohus/terraform-node-ci.git
-                      cd terraform-node-ci
-                      npm install
-                      nohup node index.js > app.log 2>&1 &
-                    EOF
-                    '''
+                dir("${TF_DIR}") {
+                    sh 'terraform init'
                 }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Deploy App via Terraform User Data') {
+            steps {
+                echo "🚀 Terraform will install Docker & run the app automatically on EC2"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment successful!'
+            echo '✅ Deployment successful! Visit the EC2 public IP output by Terraform.'
         }
         failure {
             echo '❌ Deployment failed.'
