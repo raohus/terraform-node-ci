@@ -4,7 +4,7 @@ provider "aws" {
 
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
-  public_key = file("${path.module}/deployer_key.pub")
+  public_key = file("${path.module}/id_ed25519_personal.pub")
 }
 
 resource "aws_security_group" "web_access" {
