@@ -12,6 +12,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git 'https://github.com/raohus/terraform-node-ci.git'
+                credentialsId: 'github-ssh'
             }
         }
 
