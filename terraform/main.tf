@@ -2,12 +2,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Environment variable passed from Jenkins pipeline
-variable "environment" {
-  description = "Environment name (dev, staging, prod)"
-  type        = string
-}
-
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key-${var.environment}"
   public_key = file("${path.module}/id_ed25519_personal.pub")
@@ -50,10 +44,10 @@ resource "aws_security_group" "web_access" {
 }
 
 resource "aws_instance" "web" {
-  ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2
-  instance_type          = "t2.micro"
-  key_name               = aws_key_pair.deployer.key_name
-  security_groups        = [aws_security_group.web_access.name]
+  ami             = "ami-0c02fb55956c7d316" # Amazon Linux 2
+  instance_type   = "t2.micro"
+  key_name        = aws_key_pair.deployer.key_name
+  security_groups = [aws_security_group.web_access.name]
 
   user_data = <<-EOF
               #!/bin/bash
@@ -70,6 +64,8 @@ resource "aws_instance" "web" {
               docker run -d -p 80:3000 node-app
               EOF
 
- Terraform-EC2-${var.environment}"
+  tags = {
+    Name = "Terraform-EC2-${var.environment}"
   }
 }
+
