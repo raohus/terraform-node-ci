@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 COPY node-app/package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --production
 
 # Copy the rest of the app source code
 COPY node-app/ .

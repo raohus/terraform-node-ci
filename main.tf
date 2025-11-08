@@ -2,16 +2,21 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Environment variable passed from Jenkins pipeline
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+}
+
 resource "aws_key_pair" "deployer" {
-  key_name   = "deployer-key"
+  key_name   = "deployer-key-${var.environment}"
   public_key = file("${path.module}/id_ed25519_personal.pub")
 }
 
 resource "aws_security_group" "web_access" {
-  name        = "allow_http_icmp_ssh"
+  name        = "allow_http_icmp_ssh-${var.environment}"
   description = "Allow HTTP, ICMP, and SSH inbound traffic"
 
-  # HTTP rule
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -20,7 +25,6 @@ resource "aws_security_group" "web_access" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # ICMP rule
   ingress {
     description = "ICMP (Ping)"
     from_port   = -1
@@ -29,7 +33,6 @@ resource "aws_security_group" "web_access" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # SSH rule
   ingress {
     description = "SSH"
     from_port   = 22
@@ -47,12 +50,26 @@ resource "aws_security_group" "web_access" {
 }
 
 resource "aws_instance" "web" {
-  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI for us-east-1
-  instance_type = "t2.micro"
-  key_name      = aws_key_pair.deployer.key_name
-  security_groups = [aws_security_group.web_access.name]
+  ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2
+  instance_type          = "t2.micro"
+  key_name               = aws_key_pair.deployer.key_name
+  security_groups        = [aws_security_group.web_access.name]
 
-  tags = {
-    Name = "Terraform-EC2"
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              amazon-linux-extras install docker -y
+              systemctl start docker
+              systemctl enable docker
+              usermod -aG docker ec2-user
+              yum install -y git
+              cd /home/ec2-user
+              git clone https://github.com/raohus/terraform-node-ci.git app
+              cd app/node-app
+              docker build -t node-app .
+              docker run -d -p 80:3000 node-app
+              EOF
+
+ Terraform-EC2-${var.environment}"
   }
 }
