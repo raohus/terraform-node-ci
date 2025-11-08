@@ -4,14 +4,14 @@ pipeline {
     environment {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
-        TF_DIR = '.'
+        TF_DIR = 'terraform'  // Use terraform directory explicitly
         APP_IMAGE = 'node-app:latest'
     }
 
     stages {
         stage('Checkout') {
             steps {
-               git 'https://github.com/raohus/terraform-node-ci.git'
+                git branch: env.BRANCH_NAME, url: 'https://github.com/raohus/terraform-node-ci.git'
             }
         }
 
@@ -33,13 +33,37 @@ pipeline {
             }
         }
 
-        stage('Terraform Refresh') {
+        stage('Create or Select Workspace') {
+            steps {
+                script {
+                    def workspaceName = ''
+                    if (env.BRANCH_NAME == 'dev') {
+                        workspaceName = 'dev'
+                    } else if (env.BRANCH_NAME == 'main') {
+                        workspaceName = 'prod'
+                    } else {
+                        workspaceName = 'staging'
+                    }
+
+                    dir("${TF_DIR}") {
+                        sh """
+                        echo "Checking Terraform workspace: ${workspaceName}"
+                        if terraform workspace list | grep -q '${workspaceName}'; then
+                            terraform workspace select ${workspaceName}
+                        else
+                            terraform workspace new ${workspaceName}
+                        fi
+                        """
+                    }
+                    env.ENVIRONMENT = workspaceName
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
             steps {
                 dir("${TF_DIR}") {
-                    sh '''
-                    echo "Refreshing Terraform state..."
-                    terraform refresh
-                    '''
+                    sh "terraform plan -var environment=${env.ENVIRONMENT}"
                 }
             }
         }
@@ -47,10 +71,7 @@ pipeline {
         stage('Terraform Apply') {
             steps {
                 dir("${TF_DIR}") {
-                    sh '''
-                    echo " Applying Terraform configuration..."
-                    terraform apply -auto-approve
-                    '''
+                    sh "terraform apply -auto-approve -var environment=${env.ENVIRONMENT}"
                 }
             }
         }
@@ -67,7 +88,7 @@ pipeline {
             echo '🎉 Deployment successful! Visit the EC2 public IP output by Terraform.'
         }
         failure {
-            echo '❌ Deployment failed.'
+            echo '❌ Deployment failed. Consider running terraform destroy for cleanup.'
         }
     }
 }
