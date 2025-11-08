@@ -10,8 +10,10 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            steps {
-                git branch: env.BRANCH_NAME, url: 'https://github.com/raohus/terraform-node-ci.git'
+            steps {               
+                git branch: 'main',
+                url: 'https://github.com/raohus/terraform-node-ci.git',
+                credentialsId: 'gitrepoaccess'
             }
         }
 
