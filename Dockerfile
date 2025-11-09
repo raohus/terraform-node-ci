@@ -1,6 +1,10 @@
 # Use official Node.js LTS image
 FROM node:18-alpine
 
+# Accept environment argument during build
+ARG ENV
+ENV NODE_ENV=$ENV
+
 # Set working directory inside the container
 WORKDIR /usr/src/app
 

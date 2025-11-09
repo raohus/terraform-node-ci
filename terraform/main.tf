@@ -50,19 +50,18 @@ resource "aws_instance" "web" {
   security_groups = [aws_security_group.web_access.name]
 
   user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              amazon-linux-extras install docker -y
-              systemctl start docker
-              systemctl enable docker
-              usermod -aG docker ec2-user
-              yum install -y git
-              cd /home/ec2-user
-              git clone https://github.com/raohus/terraform-node-ci.git app
-              cd app/node-app
-              docker build -t node-app .
-              docker run -d -p 80:3000 node-app
-              EOF
+  #!/bin/bash
+  yum update -y
+  yum install -y docker
+  systemctl start docker
+  systemctl enable docker
+
+# Load Docker image from Jenkins artifact (adjust path if needed)
+  docker load -i /home/ec2-user/node-app.tar
+
+# Run container with environment variable passed from Terraform
+  docker run -d -p 3000:3000 -e NODE_ENV=${var.environment} node-app:latest
+  EOF
 
   tags = {
     Name = "Terraform-EC2-${var.environment}"
