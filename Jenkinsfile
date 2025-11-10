@@ -80,48 +80,26 @@ pipeline {
             }
         }
 
-        stage('Fetch EC2 IP') {
+        stage('Push Stable Image') {
             steps {
-                script {
-                    env.EC2_PUBLIC_IP = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                    echo "🌐 EC2 Public IP: ${env.EC2_PUBLIC_IP}"
+                echo "🏷 Tagging current build as stable image..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker tag $DOCKER_IMAGE $STABLE_IMAGE
+                        docker push $STABLE_IMAGE
+                    """
                 }
-            }
-        }
-
-        stage('Deploy App on EC2') {
-            steps {
-                echo "✅ Deploying Docker image to EC2..."
-                sh """
-                    ssh -o StrictHostKeyChecking=no ec2-user@$EC2_PUBLIC_IP "
-                        docker stop node-app || true &&
-                        docker rm node-app || true &&
-                        docker pull $DOCKER_IMAGE &&
-                        docker run -d -p 80:3000 --name node-app $DOCKER_IMAGE
-                    "
-                """
             }
         }
     }
 
     post {
         success {
-            echo '🎉 Deployment successful! Tagging as stable image...'
-            sh """
-                docker tag $DOCKER_IMAGE $STABLE_IMAGE
-                docker push $STABLE_IMAGE
-            """
+            echo "🎉 Deployment successful! The EC2 instance will pull the stable image automatically."
         }
         failure {
-            echo '❌ Deployment failed. Rolling back to last stable image...'
-            sh """
-                ssh -o StrictHostKeyChecking=no ec2-user@$EC2_PUBLIC_IP "
-                    docker stop node-app || true &&
-                    docker rm node-app || true &&
-                    docker pull $STABLE_IMAGE &&
-                    docker run -d -p 80:3000 --name node-app $STABLE_IMAGE
-                "
-            """
+            echo "❌ Deployment failed. Ensure EC2 instance pulls the last stable image from Docker Hub."
         }
     }
 }
