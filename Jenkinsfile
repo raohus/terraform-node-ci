@@ -9,7 +9,7 @@ pipeline {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
         TF_DIR                = 'terraform'
-        DOCKER_IMAGE          = "raohus/node-app:${params.ENV}"
+        DOCKER_IMAGE          = "raohus/node-app:broken${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
