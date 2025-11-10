@@ -6,15 +6,6 @@ provider "aws" {
 }
 
 # -------------------------------
-# Variables
-# -------------------------------
-variable "environment" {
-  description = "Deployment environment (dev, staging, production)"
-  type        = string
-  default     = "dev"
-}
-
-# -------------------------------
 # Key Pair for SSH Access
 # -------------------------------
 resource "aws_key_pair" "deployer" {
