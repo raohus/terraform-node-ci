@@ -11,7 +11,7 @@ pipeline {
         TF_DIR                = 'terraform'
 
         // 👇 Use broken tag temporarily to trigger rollback
-        DOCKER_IMAGE          = "raohus/node-app:broken-${params.ENV}"
+        DOCKER_IMAGE          = "raohus/node-app:${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
