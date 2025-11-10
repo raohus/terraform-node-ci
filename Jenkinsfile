@@ -9,7 +9,9 @@ pipeline {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
         TF_DIR                = 'terraform'
-        DOCKER_IMAGE          = "raohus/node-app:broken${params.ENV}"
+
+        // 👇 Use broken tag temporarily to trigger rollback
+        DOCKER_IMAGE          = "raohus/node-app:broken-${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
@@ -37,45 +39,26 @@ pipeline {
             }
         }
 
-        stage('Terraform Init') {
+        stage('Terraform Init & Apply') {
             steps {
                 dir("${TF_DIR}") {
-                    sh 'terraform init'
+                    script {
+                        sh 'terraform init'
+                        sh "terraform apply -auto-approve -var environment=${params.ENV}"
+                    }
                 }
             }
         }
 
-        stage('Select Workspace') {
+        stage('Deploy Container') {
             steps {
                 script {
-                    def workspaceName = params.ENV
-                    dir("${TF_DIR}") {
-                        sh """
-                            echo "🔧 Selecting Terraform workspace: ${workspaceName}"
-                            if terraform workspace list | grep -q '${workspaceName}'; then
-                                terraform workspace select ${workspaceName}
-                            else
-                                terraform workspace new ${workspaceName}
-                            fi
-                        """
-                    }
-                    env.ENVIRONMENT = workspaceName
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                dir("${TF_DIR}") {
-                    sh "terraform plan -var environment=${env.ENVIRONMENT}"
-                }
-            }
-        }
-
-        stage('Terraform Apply') {
-            steps {
-                dir("${TF_DIR}") {
-                    sh "terraform apply -auto-approve -var environment=${env.ENVIRONMENT}"
+                    echo "🚀 Simulating container deployment..."
+                    // This will fail because image tag 'broken' doesn’t exist
+                    sh """
+                    docker pull ${DOCKER_IMAGE}
+                    echo "⚠️ This line won’t execute because image doesn't exist"
+                    """
                 }
             }
         }
@@ -96,10 +79,23 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Deployment successful! The EC2 instance will pull the stable image automatically."
+            echo "🎉 Deployment successful! Stable image updated to ${STABLE_IMAGE}"
         }
+
         failure {
-            echo "❌ Deployment failed. Ensure EC2 instance pulls the last stable image from Docker Hub."
+            echo "❌ Deployment failed. Rolling back to previous stable image on Docker Hub..."
+            script {
+                // No SSH needed — simply re-affirm the stable tag as the live image
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker pull $STABLE_IMAGE
+                        docker tag $STABLE_IMAGE raohus/node-app:${params.ENV}
+                        docker push raohus/node-app:${params.ENV}
+                    """
+                }
+            }
+            echo "✅ Rollback complete — reverted ${params.ENV} tag to last stable image."
         }
     }
 }
