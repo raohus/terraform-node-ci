@@ -8,7 +8,9 @@ pipeline {
     environment {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
-        TF_DIR = 'terraform'
+        TF_DIR                = 'terraform'
+        DOCKER_IMAGE          = "raohus/node-app:${params.ENV}"
+        STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
     stages {
@@ -26,9 +28,9 @@ pipeline {
                     echo "🚀 Building and pushing Docker image for ${params.ENV}..."
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
-                            docker build --build-arg ENV=${params.ENV} -t raohus/node-app:${params.ENV} .
-                            echo $DOCKER_PASS | docker login -u raohus --password-stdin
-                            docker push raohus/node-app:${params.ENV}
+                            docker build --build-arg ENV=${params.ENV} -t $DOCKER_IMAGE .
+                            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                            docker push $DOCKER_IMAGE
                         """
                     }
                 }
@@ -78,19 +80,48 @@ pipeline {
             }
         }
 
-        stage('Deploy App via Terraform User Data') {
+        stage('Fetch EC2 IP') {
             steps {
-                echo "✅ EC2 instance will automatically pull raohus/node-app:${env.ENVIRONMENT} from Docker Hub and start the app."
+                script {
+                    env.EC2_PUBLIC_IP = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
+                    echo "🌐 EC2 Public IP: ${env.EC2_PUBLIC_IP}"
+                }
+            }
+        }
+
+        stage('Deploy App on EC2') {
+            steps {
+                echo "✅ Deploying Docker image to EC2..."
+                sh """
+                    ssh -o StrictHostKeyChecking=no ec2-user@$EC2_PUBLIC_IP "
+                        docker stop node-app || true &&
+                        docker rm node-app || true &&
+                        docker pull $DOCKER_IMAGE &&
+                        docker run -d -p 80:3000 --name node-app $DOCKER_IMAGE
+                    "
+                """
             }
         }
     }
 
     post {
         success {
-            echo '🎉 Deployment successful! Check your Terraform output for EC2 public IP.'
+            echo '🎉 Deployment successful! Tagging as stable image...'
+            sh """
+                docker tag $DOCKER_IMAGE $STABLE_IMAGE
+                docker push $STABLE_IMAGE
+            """
         }
         failure {
-            echo '❌ Deployment failed. Review logs or consider running terraform destroy for cleanup.'
+            echo '❌ Deployment failed. Rolling back to last stable image...'
+            sh """
+                ssh -o StrictHostKeyChecking=no ec2-user@$EC2_PUBLIC_IP "
+                    docker stop node-app || true &&
+                    docker rm node-app || true &&
+                    docker pull $STABLE_IMAGE &&
+                    docker run -d -p 80:3000 --name node-app $STABLE_IMAGE
+                "
+            """
         }
     }
 }

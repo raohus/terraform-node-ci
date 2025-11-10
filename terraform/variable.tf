@@ -1,6 +1,6 @@
-
 variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
+  description = "Deployment environment (dev, staging, production)"
   type        = string
+  default     = "dev"
 }
 
