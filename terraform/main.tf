@@ -1,14 +1,30 @@
+# -------------------------------
+# Provider
+# -------------------------------
 provider "aws" {
   region = "us-east-1"
 }
 
-# ✅ Key pair for SSH access
+# -------------------------------
+# Variables
+# -------------------------------
+variable "environment" {
+  description = "Deployment environment (dev, staging, production)"
+  type        = string
+  default     = "dev"
+}
+
+# -------------------------------
+# Key Pair for SSH Access
+# -------------------------------
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key-${var.environment}"
   public_key = file("${path.module}/id_ed25519_personal.pub")
 }
 
-# ✅ Security group allowing HTTP, SSH, and ICMP
+# -------------------------------
+# Security Group: HTTP, SSH, ICMP
+# -------------------------------
 resource "aws_security_group" "web_access" {
   name        = "allow_http_icmp_ssh-${var.environment}"
   description = "Allow HTTP, ICMP, and SSH inbound traffic"
@@ -45,7 +61,9 @@ resource "aws_security_group" "web_access" {
   }
 }
 
-# ✅ EC2 instance pulling image from Docker Hub
+# -------------------------------
+# EC2 Instance
+# -------------------------------
 resource "aws_instance" "web" {
   ami             = "ami-0c02fb55956c7d316" # Amazon Linux 2
   instance_type   = "t2.micro"
@@ -63,12 +81,13 @@ resource "aws_instance" "web" {
               systemctl enable docker
               usermod -aG docker ec2-user
               
-              # Wait for Docker to be ready
               sleep 10
               
-              # Pull and run image from Docker Hub
+              docker stop node-app || true
+              docker rm node-app || true
+              
               docker pull raohus/node-app:${var.environment}
-              docker run -d -p 80:3000 raohus/node-app:${var.environment}
+              docker run -d -p 80:3000 --name node-app raohus/node-app:${var.environment}
               
               echo "✅ Node app deployed successfully with Docker image: raohus/node-app:${var.environment}"
               EOF
@@ -76,11 +95,5 @@ resource "aws_instance" "web" {
   tags = {
     Name = "Terraform-EC2-${var.environment}"
   }
-}
-
-# ✅ Output EC2 public IP for Jenkins
-output "ec2_public_ip" {
-  description = "Public IP address of the deployed EC2 instance"
-  value       = aws_instance.web.public_ip
 }
 
