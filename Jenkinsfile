@@ -9,9 +9,7 @@ pipeline {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
         TF_DIR                = 'terraform'
-
-        // 👇 Use broken tag temporarily to test rollback
-        DOCKER_IMAGE          = "raohus/node-app:broken-${params.ENV}"
+        DOCKER_IMAGE = "raohus/node-app:doesnotexist-${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
