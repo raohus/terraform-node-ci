@@ -9,7 +9,7 @@ pipeline {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
         TF_DIR                = 'terraform'
-        DOCKER_IMAGE = "raohus/node-app:doesnotexist-${params.ENV}"
+        DOCKER_IMAGE = "raohus/node-app:${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
@@ -58,6 +58,7 @@ pipeline {
                         docker pull ${DOCKER_IMAGE} || (echo "❌ Image not found!" && exit 1)
                         echo "✅ Deployment succeeded with image: ${DOCKER_IMAGE}"
                     """
+                    error("Simulated failure for rollback testing")
                 }
             }
         }
