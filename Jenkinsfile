@@ -10,8 +10,8 @@ pipeline {
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
         TF_DIR                = 'terraform'
 
-        // 👇 Use broken tag temporarily to trigger rollback
-        DOCKER_IMAGE          = "raohus/node-app:${params.ENV}"
+        // 👇 Use broken tag temporarily to test rollback
+        DOCKER_IMAGE          = "raohus/node-app:broken-${params.ENV}"
         STABLE_IMAGE          = "raohus/node-app:stable-${params.ENV}"
     }
 
@@ -53,11 +53,12 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    echo "🚀 Simulating container deployment..."
-                    // This will fail because image tag 'broken' doesn’t exist
+                    echo "🚀 Deploying container for ${params.ENV}..."
+                    // Force failure if image doesn’t exist
                     sh """
-                    docker pull ${DOCKER_IMAGE}
-                    echo "⚠️ This line won’t execute because image doesn't exist"
+                        set -e
+                        docker pull ${DOCKER_IMAGE} || (echo "❌ Image not found!" && exit 1)
+                        echo "✅ Deployment succeeded with image: ${DOCKER_IMAGE}"
                     """
                 }
             }
@@ -83,9 +84,8 @@ pipeline {
         }
 
         failure {
-            echo "❌ Deployment failed. Rolling back to previous stable image on Docker Hub..."
+            echo "❌ Deployment failed. Rolling back to previous stable image..."
             script {
-                // No SSH needed — simply re-affirm the stable tag as the live image
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh """
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
