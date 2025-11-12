@@ -58,7 +58,7 @@ pipeline {
                         docker pull ${DOCKER_IMAGE} || (echo "❌ Image not found!" && exit 1)
                         echo "✅ Deployment succeeded with image: ${DOCKER_IMAGE}"
                     """
-                    //error("Simulated failure for rollback testing")
+                    error("Simulated failure for rollback testing")
                 }
             }
         }
